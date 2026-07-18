@@ -8,7 +8,7 @@ from aiohttp_socks import ProxyConnector
 from eth_account import Account
 from eth_account.messages import encode_defunct
 from eth_utils import to_hex
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from colorama import *
 import asyncio, random, time, sys, re, os
 
@@ -148,6 +148,15 @@ class SimpleChain:
 
         return proxy_url
     
+    def get_next_run_time(self, anchor_minute=1):
+        now = datetime.now(timezone.utc)
+        today_target = now.replace(hour=0, minute=anchor_minute, second=0, microsecond=0)
+
+        if today_target > now:
+            return today_target
+        else:
+            return today_target + timedelta(days=1)
+    
     def initialize_headers(self, address: str):
         headers = {
             "Accept": "*/*",
@@ -266,13 +275,14 @@ class SimpleChain:
             try:
                 headers = self.initialize_headers(address)
                 headers["Content-Type"] = "application/json"
-
                 payload = {
                     "address": address
                 }
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.post(
+                        url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -296,11 +306,12 @@ class SimpleChain:
             try:
                 headers = self.initialize_headers(address)
                 headers["Content-Type"] = "application/json"
-
                 payload = self.generate_payload(private_key, address, message)
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.post(
+                        url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -326,7 +337,9 @@ class SimpleChain:
                 headers["Authorization"] = f"Bearer {self.accounts[address]['token']}"
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.get(url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.get(
+                        url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -352,7 +365,9 @@ class SimpleChain:
                 headers["Authorization"] = f"Bearer {self.accounts[address]['token']}"
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.get(url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.get(
+                        url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -379,7 +394,9 @@ class SimpleChain:
                 headers["Content-Type"] = "application/json"
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json={}, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.post(
+                        url=url, headers=headers, json={}, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -405,7 +422,9 @@ class SimpleChain:
                 headers["Authorization"] = f"Bearer {self.accounts[address]['token']}"
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.get(url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.get(
+                        url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -436,7 +455,9 @@ class SimpleChain:
                 }
                 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.post(
+                        url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth
+                    ) as response:
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -649,7 +670,6 @@ class SimpleChain:
 
                 separator = "=" * 25
                 for idx, private_key in enumerate(accounts, start=1):
-
                     self.log(
                         f"{Fore.CYAN + Style.BRIGHT}{separator}[{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} {idx} {Style.RESET_ALL}"
@@ -677,20 +697,27 @@ class SimpleChain:
 
                 self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*72)
                 
-                delay = 24 * 60 * 60
-                while delay > 0:
-                    formatted_time = self.format_seconds(delay)
+                next_run = self.get_next_run_time(anchor_minute=1)
+
+                while True:
+                    now = datetime.now(timezone.utc)
+                    remaining = (next_run - now).total_seconds()
+
+                    if remaining <= 0:
+                        break
+
+                    formatted_time = self.format_seconds(remaining)
+
                     print(
                         f"{Fore.CYAN+Style.BRIGHT}[ Wait for{Style.RESET_ALL}"
                         f"{Fore.WHITE+Style.BRIGHT} {formatted_time} {Style.RESET_ALL}"
-                        f"{Fore.CYAN+Style.BRIGHT}... ]{Style.RESET_ALL}"
+                        f"{Fore.CYAN+Style.BRIGHT}]{Style.RESET_ALL}"
                         f"{Fore.WHITE+Style.BRIGHT} | {Style.RESET_ALL}"
                         f"{Fore.BLUE+Style.BRIGHT}All Accounts Have Been Processed...{Style.RESET_ALL}",
                         end="\r",
                         flush=True
                     )
                     await asyncio.sleep(1)
-                    delay -= 1
 
         except Exception as e:
             self.log(f"{Fore.RED+Style.BRIGHT}Error: {e}{Style.RESET_ALL}")
@@ -706,4 +733,4 @@ if __name__ == "__main__":
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
             f"{Fore.RED + Style.BRIGHT}[ EXIT ] SimpleChain - BOT{Style.RESET_ALL}                                       "                              
         )
-        sys.exit(1)
+        sys.exit(0)
