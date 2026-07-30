@@ -71,6 +71,11 @@ class SimpleChain:
                 return accounts
 
         filename = "accounts.txt"
+        if not os.path.exists(filename):
+            print(f"{Fore.RED + Style.BRIGHT}Error: 'accounts.txt' not found and 'ACCOUNTS' environment variable is not set!{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW + Style.BRIGHT}Please add the 'ACCOUNTS' variable in the Railway settings dashboard with your private keys.{Style.RESET_ALL}")
+            return None
+
         try:
             with open(filename, 'r') as file:
                 accounts = [line.strip() for line in file if line.strip()]
