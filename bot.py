@@ -64,6 +64,12 @@ class SimpleChain:
         return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
     
     def load_accounts(self):
+        env_accounts = os.getenv("ACCOUNTS")
+        if env_accounts:
+            accounts = [line.strip() for line in re.split(r'[,\n;]+', env_accounts) if line.strip()]
+            if accounts:
+                return accounts
+
         filename = "accounts.txt"
         try:
             with open(filename, 'r') as file:
@@ -215,33 +221,8 @@ class SimpleChain:
             return None
 
     def print_question(self):
-        while True:
-            try:
-                print(f"{Fore.WHITE + Style.BRIGHT}1. Run With Proxy{Style.RESET_ALL}")
-                print(f"{Fore.WHITE + Style.BRIGHT}2. Run Without Proxy{Style.RESET_ALL}")
-                proxy_choice = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2] -> {Style.RESET_ALL}").strip())
-
-                if proxy_choice in [1, 2]:
-                    proxy_type = (
-                        "With" if proxy_choice == 1 else 
-                        "Without"
-                    )
-                    print(f"{Fore.GREEN + Style.BRIGHT}Run {proxy_type} Proxy Selected.{Style.RESET_ALL}")
-                    self.USE_PROXY = True if proxy_choice == 1 else False
-                    break
-                else:
-                    print(f"{Fore.RED + Style.BRIGHT}Please enter either 1 or 2.{Style.RESET_ALL}")
-            except ValueError:
-                print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1 or 2).{Style.RESET_ALL}")
-
-        if self.USE_PROXY:
-            while True:
-                rotate_proxy = input(f"{Fore.BLUE + Style.BRIGHT}Rotate Invalid Proxy? [y/n] -> {Style.RESET_ALL}").strip()
-                if rotate_proxy in ["y", "n"]:
-                    self.ROTATE_PROXY = True if rotate_proxy == "y" else False
-                    break
-                else:
-                    print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter 'y' or 'n'.{Style.RESET_ALL}")
+        print(f"{Fore.GREEN + Style.BRIGHT}Running without proxy...{Style.RESET_ALL}")
+        self.USE_PROXY = False
     
     async def ensure_ok(self, response):
         if response.status >= 400:
